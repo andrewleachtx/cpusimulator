@@ -1,0 +1,20 @@
+main:
+  sub sp, sp, #16
+  mov w0, wzr
+  str wzr, [sp, #12]
+  mov w8, #5
+  str w8, [sp, #8]
+  ldr w8, [sp, #8]
+  add w8, w8, #3
+  str w8, [sp, #4]
+  add sp, sp, #16
+  ret
+
+/*
+int main() {
+    int a = 5;
+    int b = a + 3;
+
+    return 0;
+}
+*/
