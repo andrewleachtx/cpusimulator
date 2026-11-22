@@ -20,6 +20,7 @@ enum class Operation {
 };
 
 enum class Register {
+    X0 = 0, X1, X2, X3, X4, X5, X6, X7, X8, X9, X10, X11, X12, X13, X14, X15, X16, X17, X18, X19, X20, X21, X22, X23, X24, X25, X26, X27, X28, X29, X30,
     SP,
     W0,
     W8,
@@ -35,7 +36,7 @@ struct Instruction {
 
 class CPU {
 public:
-    CPU() : instruction_pointer_{0}, stack_pointer_{0}, program_{} {};
+    CPU() : instruction_pointer_{0}, stack_pointer_{1024}, program_{} {};
 
     void loadProgram(const std::filesystem::path& path) {
         // ifstream just for read, fstream for R/W
@@ -102,7 +103,30 @@ private:
         return instructions;
     }
 
-    void execute_(const Instruction& instruction) {}
+    void execute_(const Instruction& instruction) {
+        switch (instruction.op) {
+            case Operation::SUB_IMMEDIATE:
+                // sub dst, src, #immediatevalue
+                write_register_(instruction.destination, read_register_(instruction.source) - instruction.immediate);
+        }
+    }
+
+    std::uint64_t read_register_(Register reg) {
+        if (reg == Register::SP) {
+            return stack_pointer_;
+        }
+
+        return 1;
+    }
+
+    void write_register_(Register reg, std::uint64_t value) {
+        if (reg == Register::SP) {
+            stack_pointer_ = value;
+        }
+        else if (reg >= Register::X0 && reg <= Register::X30) {
+            registers_[static_cast<std::size_t>(reg)] = value;
+        }
+    }
 };
 
 class Memory {
@@ -113,5 +137,5 @@ int main() {
     CPU cpu;
     
     cpu.loadProgram("./program.txt");
-    // cpu.run();
+    cpu.run();
 }
