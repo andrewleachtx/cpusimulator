@@ -16,7 +16,8 @@
 #include <sstream>
 
 enum class Operation {
-    SUB_IMMEDIATE
+    SUB_IMMEDIATE,
+    MOV
 };
 
 enum class Register {
@@ -77,26 +78,45 @@ private:
             std::string mnemonic;
             parts >> mnemonic;
 
-            if (mnemonic != "sub") {
-                continue;
+            Instruction instruction {};
+            bool parsed = false;
+
+            if (mnemonic == "sub") {
+                std::string destination;
+                std::string source;
+                std::string immediate;
+                parts >> destination >> source >> immediate;
+                
+                // "sp," -> "sp"
+                destination.pop_back(); 
+                source.pop_back();
+
+                if (source == "sp") instruction.source = Register::SP;
+                if (destination == "sp") instruction.destination = Register::SP;
+
+                if (!immediate.empty() && source == "sp" && destination == "sp") {
+                    instruction.op = Operation::SUB_IMMEDIATE;
+                    instruction.immediate = std::stoi(immediate.substr(1));
+
+                    parsed = true;
+                }
+                else { /*TODO*/}
+            }
+            else if (mnemonic == "mov") {
+                //   mov w0, wzr
+                std::string destination;
+                std::string source;
+                parts >> destination >> source;
+                
+                // "w0," -> "w0"
+                destination.pop_back();
+                
+                instruction.op = Operation::MOV;
+                // instruction.destination = destination;
             }
 
-            std::string destination;
-            std::string source;
-            std::string immediate;
-            parts >> destination >> source >> immediate;
-            
-            // "sp," -> "sp"
-            destination.pop_back(); 
-            source.pop_back(); 
-
-            if (destination == "sp" && source == "sp") {
-                instructions.push_back({
-                    Operation::SUB_IMMEDIATE,
-                    Register::SP,
-                    Register::SP,
-                    std::stoi(immediate.substr(1)) // "#16" -> 16
-                });
+            if (parsed) {
+                instructions.push_back(instruction);
             }
         }
 
@@ -105,9 +125,14 @@ private:
 
     void execute_(const Instruction& instruction) {
         switch (instruction.op) {
-            case Operation::SUB_IMMEDIATE:
+            case Operation::SUB_IMMEDIATE: {
                 // sub dst, src, #immediatevalue
                 write_register_(instruction.destination, read_register_(instruction.source) - instruction.immediate);
+            }
+            case Operation::MOV: {
+                // mov dst, src
+                write_register_(instruction.destination, read_register_(instruction.source));
+            }
         }
     }
 
