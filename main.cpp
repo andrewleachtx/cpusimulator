@@ -15,13 +15,40 @@
 #include <fstream>
 #include <sstream>
 
-enum class Operation {
-    SUB_IMMEDIATE,
-    MOV
-};
+enum class Operation { SUB_IMMEDIATE, MOV };
 
 enum class Register {
-    X0 = 0, X1, X2, X3, X4, X5, X6, X7, X8, X9, X10, X11, X12, X13, X14, X15, X16, X17, X18, X19, X20, X21, X22, X23, X24, X25, X26, X27, X28, X29, X30,
+    X0 = 0,
+    X1,
+    X2,
+    X3,
+    X4,
+    X5,
+    X6,
+    X7,
+    X8,
+    X9,
+    X10,
+    X11,
+    X12,
+    X13,
+    X14,
+    X15,
+    X16,
+    X17,
+    X18,
+    X19,
+    X20,
+    X21,
+    X22,
+    X23,
+    X24,
+    X25,
+    X26,
+    X27,
+    X28,
+    X29,
+    X30,
     SP,
     W0,
     W8,
@@ -41,7 +68,7 @@ public:
 
     void loadProgram(const std::filesystem::path& path) {
         // ifstream just for read, fstream for R/W
-        std::ifstream file {path};
+        std::ifstream file{path};
 
         // parse/interpret the assembly into a set of instructions which
         // our instruction pointer can point to
@@ -68,55 +95,62 @@ private:
 
     std::vector<Instruction> source_to_instructions_(std::ifstream& file) {
         std::vector<Instruction> instructions;
-        
+
         std::string line;
         int i = 0;
         while (std::getline(file, line)) {
             printf("line %d: %s\n", i++, line.c_str());
 
-            std::istringstream parts {line};
+            std::istringstream parts{line};
             std::string mnemonic;
             parts >> mnemonic;
 
-            Instruction instruction {};
-            bool parsed = false;
+            Instruction instruction{};
 
             if (mnemonic == "sub") {
                 std::string destination;
                 std::string source;
                 std::string immediate;
                 parts >> destination >> source >> immediate;
-                
+
                 // "sp," -> "sp"
-                destination.pop_back(); 
+                destination.pop_back();
                 source.pop_back();
 
-                if (source == "sp") instruction.source = Register::SP;
-                if (destination == "sp") instruction.destination = Register::SP;
+                if (source == "sp")
+                    instruction.source = Register::SP;
+                if (destination == "sp")
+                    instruction.destination = Register::SP;
 
-                if (!immediate.empty() && source == "sp" && destination == "sp") {
+                if (!immediate.empty() && source == "sp" &&
+                    destination == "sp") {
                     instruction.op = Operation::SUB_IMMEDIATE;
                     instruction.immediate = std::stoi(immediate.substr(1));
 
-                    parsed = true;
+                    instructions.push_back(instruction);
                 }
-                else { /*TODO*/}
+                else { /*TODO*/
+                }
             }
             else if (mnemonic == "mov") {
                 //   mov w0, wzr
                 std::string destination;
                 std::string source;
                 parts >> destination >> source;
-                
+
                 // "w0," -> "w0"
                 destination.pop_back();
-                
-                instruction.op = Operation::MOV;
-                // instruction.destination = destination;
-            }
 
-            if (parsed) {
-                instructions.push_back(instruction);
+                instruction.op = Operation::MOV;
+
+                if (source == "wzr")
+                    instruction.source = Register::WZR;
+                if (destination == "w0")
+                    instruction.destination = Register::W0;
+
+                if (source == "wzr" && destination == "w0") {
+                    instructions.push_back(instruction);
+                }
             }
         }
 
@@ -125,20 +159,34 @@ private:
 
     void execute_(const Instruction& instruction) {
         switch (instruction.op) {
-            case Operation::SUB_IMMEDIATE: {
-                // sub dst, src, #immediatevalue
-                write_register_(instruction.destination, read_register_(instruction.source) - instruction.immediate);
-            }
-            case Operation::MOV: {
-                // mov dst, src
-                write_register_(instruction.destination, read_register_(instruction.source));
-            }
+        case Operation::SUB_IMMEDIATE: {
+            // sub dst, src, #immediatevalue
+            write_register_(instruction.destination,
+                            read_register_(instruction.source) -
+                                instruction.immediate);
+
+            break;
+        }
+        case Operation::MOV: {
+            // mov dst, src
+            write_register_(instruction.destination,
+                            read_register_(instruction.source));
+
+            break;
+        }
         }
     }
 
     std::uint64_t read_register_(Register reg) {
         if (reg == Register::SP) {
             return stack_pointer_;
+        }
+        else if (reg == Register::WZR) {
+            return 0;
+        }
+        else if (reg == Register::W0) {
+            return static_cast<std::uint32_t>(
+                registers_[static_cast<std::size_t>(Register::X0)]);
         }
 
         return 1;
@@ -151,16 +199,21 @@ private:
         else if (reg >= Register::X0 && reg <= Register::X30) {
             registers_[static_cast<std::size_t>(reg)] = value;
         }
+        else if (reg == Register::W0) {
+            // write the value into the lower bits, clearing
+            registers_[static_cast<std::size_t>(Register::X0)] = value;
+            // clear the upper 32 bits (you could ignore this if you cast above to std::uint32_t)
+            registers_[static_cast<std::size_t>(Register::X0)] &=
+                0x0000'0000'FFFF'FFFF;
+        }
     }
 };
 
-class Memory {
-
-};
+class Memory {};
 
 int main() {
     CPU cpu;
-    
+
     cpu.loadProgram("./program.txt");
     cpu.run();
 }
